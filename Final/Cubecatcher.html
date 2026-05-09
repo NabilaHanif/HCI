@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cube Catcher Deluxe</title>
+
+<style>
+    body{
+        margin:0;
+        font-family:Arial, sans-serif;
+        text-align:center;
+        background:linear-gradient(to bottom,#74ebd5,#ACB6E5);
+        overflow:hidden;
+    }
+
+    h1{
+        margin-top:15px;
+        color:#222;
+        text-shadow:1px 1px 3px white;
+    }
+
+    #scoreBoard{
+        font-size:24px;
+        margin:10px;
+        font-weight:bold;
+        color:#111;
+    }
+
+    canvas{
+        border:4px solid #222;
+        background:#ffffff;
+        border-radius:12px;
+        box-shadow:0 0 20px rgba(0,0,0,0.3);
+    }
+
+    #info{
+        margin-top:10px;
+        font-size:18px;
+        color:#222;
+    }
+</style>
+</head>
+
+<body>
+
+<h1>🎮 CUBE CATCHER DELUXE</h1>
+
+<div id="scoreBoard">
+    Score: <span id="scoreVal">0</span>
+</div>
+
+<div id="info">
+    Use Arrow Keys / WASD to Move | Click Cubes to Destroy
+</div>
+
+<canvas id="gameCanvas" width="800" height="500"></canvas>
+
+<script>
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("scoreVal");
+
+let score = 0;
+let gameOver = false;
+
+const player = {
+    x: 380,
+    y: 220,
+    size: 45,
+    color: "#ff3b3b",
+    speed: 6
+};
+
+const keys = {};
+let targets = [];
+let particles = [];
+
+/* Keyboard Controls */
+window.addEventListener("keydown", (e)=>{
+    keys[e.key] = true;
+});
+
+window.addEventListener("keyup", (e)=>{
+    keys[e.key] = false;
+});
+
+/* Mouse Click Destroy */
+canvas.addEventListener("mousedown",(e)=>{
+
+    const rect = canvas.getBoundingClientRect();
+
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    targets = targets.filter(t => {
+
+        const clicked =
+            mouseX > t.x &&
+            mouseX < t.x + t.size &&
+            mouseY > t.y &&
+            mouseY < t.y + t.size;
+
+        if(clicked){
+
+            score += 10;
+            scoreEl.innerText = score;
+
+            createParticles(t.x, t.y, t.color);
+
+            return false;
+        }
+
+        return true;
+    });
+});
+
+/* Spawn Cubes */
+function spawnTarget(){
+
+    if(targets.length < 7){
+
+        const colors = [
+            "#3498db",
+            "#2ecc71",
+            "#f1c40f",
+            "#9b59b6",
+            "#e67e22"
+        ];
+
+        targets.push({
+            x: Math.random() * (canvas.width - 35),
+            y: Math.random() * (canvas.height - 35),
+            size: 35,
+            color: colors[Math.floor(Math.random()*colors.length)],
+            speedX:(Math.random()*4)-2,
+            speedY:(Math.random()*4)-2
+        });
+    }
+}
+
+setInterval(spawnTarget,1500);
+
+/* Particle Effect */
+function createParticles(x,y,color){
+
+    for(let i=0;i<15;i++){
+
+        particles.push({
+            x:x,
+            y:y,
+            size:Math.random()*6,
+            color:color,
+            dx:(Math.random()-0.5)*5,
+            dy:(Math.random()-0.5)*5,
+            life:30
+        });
+    }
+}
+
+/* Update Game */
+function update(){
+
+    /* Player Movement */
+    if(keys["ArrowUp"] || keys["w"]){
+        player.y -= player.speed;
+    }
+
+    if(keys["ArrowDown"] || keys["s"]){
+        player.y += player.speed;
+    }
+
+    if(keys["ArrowLeft"] || keys["a"]){
+        player.x -= player.speed;
+    }
+
+    if(keys["ArrowRight"] || keys["d"]){
+        player.x += player.speed;
+    }
+
+    /* Boundary */
+    player.x = Math.max(0,
+        Math.min(canvas.width-player.size,player.x));
+
+    player.y = Math.max(0,
+        Math.min(canvas.height-player.size,player.y));
+
+    /* Moving Targets */
+    targets.forEach(t=>{
+
+        t.x += t.speedX;
+        t.y += t.speedY;
+
+        if(t.x <=0 || t.x+t.size >= canvas.width){
+            t.speedX *= -1;
+        }
+
+        if(t.y <=0 || t.y+t.size >= canvas.height){
+            t.speedY *= -1;
+        }
+
+        /* Collision with Player */
+        if(
+            player.x < t.x + t.size &&
+            player.x + player.size > t.x &&
+            player.y < t.y + t.size &&
+            player.y + player.size > t.y
+        ){
+            score += 5;
+            scoreEl.innerText = score;
+
+            createParticles(t.x,t.y,t.color);
+
+            targets = targets.filter(obj => obj !== t);
+        }
+    });
+
+    /* Particle Animation */
+    particles.forEach((p,index)=>{
+
+        p.x += p.dx;
+        p.y += p.dy;
+        p.life--;
+
+        if(p.life <=0){
+            particles.splice(index,1);
+        }
+    });
+}
+
+/* Draw Everything */
+function render(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    /* Background Grid */
+    ctx.strokeStyle = "#eee";
+
+    for(let i=0;i<canvas.width;i+=40){
+        ctx.beginPath();
+        ctx.moveTo(i,0);
+        ctx.lineTo(i,canvas.height);
+        ctx.stroke();
+    }
+
+    for(let i=0;i<canvas.height;i+=40){
+        ctx.beginPath();
+        ctx.moveTo(0,i);
+        ctx.lineTo(canvas.width,i);
+        ctx.stroke();
+    }
+
+    /* Draw Targets */
+    targets.forEach(t=>{
+
+        ctx.fillStyle = t.color;
+        ctx.fillRect(t.x,t.y,t.size,t.size);
+
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(t.x,t.y,t.size,t.size);
+    });
+
+    /* Draw Player */
+    ctx.fillStyle = player.color;
+
+    ctx.fillRect(
+        player.x,
+        player.y,
+        player.size,
+        player.size
+    );
+
+    /* Draw Particles */
+    particles.forEach(p=>{
+
+        ctx.fillStyle = p.color;
+
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    update();
+
+    requestAnimationFrame(render);
+}
+
+render();
+
+</script>
+
+</body>
+</html>
